@@ -1,6 +1,29 @@
 #include <SFML/Graphics.hpp>
 using namespace std;
+char pieces[7][4][4];
+bool loadpieces()
+{
+    ifstream fin("pieces.txt");
+    if (!fin)
+        return false;
+    int count;
+    fin >> count;
+    if (count != 7)
+        return false;
+    for (int p = 0;p < count;p++) {
+        for (int r = 0;r < 4;r++) {
+            for (int c = 0;c < 4;c++) {
+                char ch;
+                fin >> ch;
+                if (!fin)
+                    return false;
+                pieces[p][r][c] = ch;
 
+            }
+        }
+    }
+    return true;
+}
 int main()
 {
     int board[20][10] = {0};
