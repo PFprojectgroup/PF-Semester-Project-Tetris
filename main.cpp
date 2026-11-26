@@ -69,6 +69,51 @@ bool canPlace(char shape[4][4], int row, int col, int board[20][10])
 
     return true;
 }
+int clearLines(int board[20][10])
+{
+    int lines = 0;
+
+    for (int r = 19; r >= 0; r--)
+    {
+        bool full = true;
+
+        // Check if row is completely filled
+        for (int c = 0; c < 10; c++)
+        {
+            if (board[r][c] == 0)
+            {
+                full = false;
+                break;
+            }
+        }
+
+        // If row is full
+        if (full)
+        {
+            lines++;
+
+            // Move all rows above one step down
+            for (int i = r; i > 0; i--)
+            {
+                for (int c = 0; c < 10; c++)
+                {
+                    board[i][c] = board[i - 1][c];
+                }
+            }
+
+            // Make top row empty
+            for (int c = 0; c < 10; c++)
+            {
+                board[0][c] = 0;
+            }
+
+            // Check this row again
+            r++;
+        }
+    }
+
+    return lines;
+}
 
 int main()
 {
@@ -224,7 +269,7 @@ int main()
                         }
                     }
                 }
-
+                clearLines(board);
                 // Select next piece in order
                 current_piece++;
 
