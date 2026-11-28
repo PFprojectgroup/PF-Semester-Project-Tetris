@@ -273,6 +273,9 @@ int main()
 
     int score = 0;
     int highScore = loadHighScore();
+    int level = 1;
+    int  totallines = 0;
+    int fallingspeed = 30;
 
     sf::Font font;
 
@@ -389,6 +392,10 @@ int main()
                         if (selected == 0)
                         {
                             score = 0;
+                            level = 1;
+                            totallines = 0;
+                            fallingspeed = 30;
+
 
                             // Empty board
                             for (int r = 0; r < 20; r++)
@@ -523,7 +530,7 @@ int main()
         {
             fallCounter++;
 
-            if (fallCounter >= 30)
+            if (fallCounter >= fallingspeed)
             {
                 fallCounter = 0;
 
@@ -548,6 +555,11 @@ int main()
 
                     // Clear lines
                     int cleared = clearLines(board);
+                    totallines += cleared;
+                    level = 1 + totallines / 10;
+                    fallingspeed = 30 - (level - 1) * 5;
+                    if (fallingspeed < 5)
+                        fallingspeed = 5;
 
                     if (cleared == 1)
                     {
