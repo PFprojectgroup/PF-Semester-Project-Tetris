@@ -1,12 +1,16 @@
-
 #include <iostream>
 #include <fstream>
 #include <string>
 #include <SFML/Graphics.hpp>
+#include <SFML/Audio.hpp>
 using namespace std;
 
 // Store 7 pieces
 char pieces[7][4][4];
+
+const int MENU = 0;
+const int PLAYING = 1;
+const int GAME_OVER = 2;
 
 // Load pieces from file
 bool loadpieces()
@@ -70,6 +74,8 @@ bool canPlace(char shape[4][4], int row, int col, int board[20][10])
 
     return true;
 }
+
+// Clear completed lines
 int clearLines(int board[20][10])
 {
     int lines = 0;
@@ -78,7 +84,6 @@ int clearLines(int board[20][10])
     {
         bool full = true;
 
-        // Check if row is completely filled
         for (int c = 0; c < 10; c++)
         {
             if (board[r][c] == 0)
@@ -88,12 +93,11 @@ int clearLines(int board[20][10])
             }
         }
 
-        // If row is full
         if (full)
         {
             lines++;
 
-            // Move all rows above one step down
+            // Move rows above downward
             for (int i = r; i > 0; i--)
             {
                 for (int c = 0; c < 10; c++)
@@ -102,19 +106,21 @@ int clearLines(int board[20][10])
                 }
             }
 
-            // Make top row empty
+            // Empty top row
             for (int c = 0; c < 10; c++)
             {
                 board[0][c] = 0;
             }
 
-            // Check this row again
+            // Check the same row again
             r++;
         }
     }
 
     return lines;
 }
+
+// Load High Score
 int loadHighScore()
 {
     ifstream fin("highscore.txt");
@@ -133,6 +139,8 @@ int loadHighScore()
 
     return best;
 }
+
+// Save High Score
 void saveHighScore(int best)
 {
     ofstream fout("highscore.txt");
@@ -142,6 +150,8 @@ void saveHighScore(int best)
         fout << best << endl;
     }
 }
+
+// Check High Score
 void checkHighScore(int score, int& highScore)
 {
     if (score > highScore)
@@ -151,27 +161,102 @@ void checkHighScore(int score, int& highScore)
         saveHighScore(highScore);
     }
 }
+
+// Draw High Score
 void drawHighScore(sf::RenderWindow& window, sf::Font& font, int highScore)
 {
     sf::Text text(font, "HIGH SCORE: " + to_string(highScore), 18);
 
     text.setFillColor(sf::Color::Yellow);
-
     text.setPosition({ 330.f, 80.f });
 
     window.draw(text);
 }
 
+// Draw Current Score
 void drawScore(sf::RenderWindow& window, sf::Font& font, int score)
 {
     sf::Text text(font, "SCORE: " + to_string(score), 18);
 
     text.setFillColor(sf::Color::White);
-
     text.setPosition({ 330.f, 130.f });
 
     window.draw(text);
 }
+
+// Draw Main Menu
+void drawMenu(sf::RenderWindow& window, sf::Font& font,
+    int selected, bool soundOn)
+{
+    sf::Text title(font, "TETRIS", 50);
+
+    title.setFillColor(sf::Color::Cyan);
+    title.setPosition({ 150.f, 150.f });
+
+    window.draw(title);
+
+    sf::Text newGame(font, "NEW GAME", 30);
+    sf::Text soundOption(font, "SOUND: ON", 30);
+    sf::Text exitGame(font, "EXIT", 30);
+
+    if (soundOn)
+    {
+        soundOption.setString("SOUND: ON");
+    }
+    else
+    {
+        soundOption.setString("SOUND: OFF");
+    }
+
+    newGame.setPosition({ 180.f, 300.f });
+    soundOption.setPosition({ 150.f, 370.f });
+    exitGame.setPosition({ 180.f, 440.f });
+
+    newGame.setFillColor(sf::Color::White);
+    soundOption.setFillColor(sf::Color::White);
+    exitGame.setFillColor(sf::Color::White);
+
+    if (selected == 0)
+    {
+        newGame.setFillColor(sf::Color::Yellow);
+    }
+    else if (selected == 1)
+    {
+        soundOption.setFillColor(sf::Color::Yellow);
+    }
+    else
+    {
+        exitGame.setFillColor(sf::Color::Yellow);
+    }
+
+    window.draw(newGame);
+    window.draw(soundOption);
+    window.draw(exitGame);
+}
+
+// Draw Game Over
+void drawGameOver(sf::RenderWindow& window, sf::Font& font, int score)
+{
+    sf::Text title(font, "GAME OVER", 45);
+
+    title.setFillColor(sf::Color::Red);
+    title.setPosition({ 120.f, 200.f });
+
+    sf::Text finalScore(font, "FINAL SCORE: " + to_string(score), 25);
+
+    finalScore.setFillColor(sf::Color::White);
+    finalScore.setPosition({ 130.f, 290.f });
+
+    sf::Text message(font, "Press Enter to return to Menu", 20);
+
+    message.setFillColor(sf::Color::Yellow);
+    message.setPosition({ 80.f, 380.f });
+
+    window.draw(title);
+    window.draw(finalScore);
+    window.draw(message);
+}
+
 int main()
 {
     // Load pieces
@@ -185,13 +270,32 @@ int main()
 
     // Game board
     int board[20][10] = { 0 };
-    int score = 0;
 
+    int score = 0;
     int highScore = loadHighScore();
 
     sf::Font font;
 
     bool fontLoaded = font.openFromFile("C:/Windows/Fonts/arial.ttf");
+
+    // Background music
+    sf::Music music;
+
+    bool musicLoaded = music.openFromFile("tetris_background.wav");
+
+    bool soundOn = true;
+
+    if (musicLoaded)
+    {
+        music.setLooping(true);
+        music.setVolume(30.f);
+
+        music.play();
+    }
+    else
+    {
+        cout << "Background music load nahi hui!" << endl;
+    }
 
     const float CELL = 30.f;
     const float board_x = 20.f;
@@ -238,6 +342,10 @@ int main()
 
     int fallCounter = 0;
 
+    // Game states
+    int gameState = MENU;
+    int selected = 0;
+
     while (window.isOpen())
     {
         // Keyboard events
@@ -250,57 +358,159 @@ int main()
 
             if (const auto* key = event->getIf<sf::Event::KeyPressed>())
             {
-                // LEFT
-                if (key->code == sf::Keyboard::Key::Left ||
-                    key->code == sf::Keyboard::Key::A)
+                // MAIN MENU
+                if (gameState == MENU)
                 {
-                    if (canPlace(currentShape, pieceRow, pieceCol - 1, board))
+                    // Move selection
+                    if (key->code == sf::Keyboard::Key::Up)
                     {
-                        pieceCol--;
-                    }
-                }
+                        selected--;
 
-                // RIGHT
-                if (key->code == sf::Keyboard::Key::Right ||
-                    key->code == sf::Keyboard::Key::D)
-                {
-                    if (canPlace(currentShape, pieceRow, pieceCol + 1, board))
-                    {
-                        pieceCol++;
-                    }
-                }
-
-                // DOWN
-                if (key->code == sf::Keyboard::Key::Down ||
-                    key->code == sf::Keyboard::Key::S)
-                {
-                    if (canPlace(currentShape, pieceRow + 1, pieceCol, board))
-                    {
-                        pieceRow++;
-                    }
-                }
-
-                // ROTATE
-                if (key->code == sf::Keyboard::Key::Up ||
-                    key->code == sf::Keyboard::Key::W)
-                {
-                    char rotated[4][4];
-
-                    for (int r = 0; r < 4; r++)
-                    {
-                        for (int c = 0; c < 4; c++)
+                        if (selected < 0)
                         {
-                            rotated[c][3 - r] = currentShape[r][c];
+                            selected = 2;
                         }
                     }
 
-                    if (canPlace(rotated, pieceRow, pieceCol, board))
+                    if (key->code == sf::Keyboard::Key::Down)
                     {
+                        selected++;
+
+                        if (selected > 2)
+                        {
+                            selected = 0;
+                        }
+                    }
+
+                    // Select option
+                    if (key->code == sf::Keyboard::Key::Enter)
+                    {
+                        // NEW GAME
+                        if (selected == 0)
+                        {
+                            score = 0;
+
+                            // Empty board
+                            for (int r = 0; r < 20; r++)
+                            {
+                                for (int c = 0; c < 10; c++)
+                                {
+                                    board[r][c] = 0;
+                                }
+                            }
+
+                            // First piece
+                            current_piece = 0;
+
+                            pieceRow = 0;
+                            pieceCol = 3;
+
+                            // Copy first shape
+                            for (int r = 0; r < 4; r++)
+                            {
+                                for (int c = 0; c < 4; c++)
+                                {
+                                    currentShape[r][c] =
+                                        pieces[current_piece][r][c];
+                                }
+                            }
+
+                            fallCounter = 0;
+
+                            gameState = PLAYING;
+                        }
+
+                        // SOUND ON / OFF
+                        else if (selected == 1)
+                        {
+                            soundOn = !soundOn;
+
+                            if (musicLoaded)
+                            {
+                                if (soundOn)
+                                {
+                                    music.play();
+                                }
+                                else
+                                {
+                                    music.pause();
+                                }
+                            }
+                        }
+
+                        // EXIT
+                        else if (selected == 2)
+                        {
+                            window.close();
+                        }
+                    }
+                }
+
+                // GAME OVER
+                else if (gameState == GAME_OVER)
+                {
+                    if (key->code == sf::Keyboard::Key::Enter)
+                    {
+                        gameState = MENU;
+                        selected = 0;
+                    }
+                }
+
+                // PLAYING
+                else if (gameState == PLAYING)
+                {
+                    // LEFT
+                    if (key->code == sf::Keyboard::Key::Left ||
+                        key->code == sf::Keyboard::Key::A)
+                    {
+                        if (canPlace(currentShape, pieceRow, pieceCol - 1, board))
+                        {
+                            pieceCol--;
+                        }
+                    }
+
+                    // RIGHT
+                    if (key->code == sf::Keyboard::Key::Right ||
+                        key->code == sf::Keyboard::Key::D)
+                    {
+                        if (canPlace(currentShape, pieceRow, pieceCol + 1, board))
+                        {
+                            pieceCol++;
+                        }
+                    }
+
+                    // DOWN
+                    if (key->code == sf::Keyboard::Key::Down ||
+                        key->code == sf::Keyboard::Key::S)
+                    {
+                        if (canPlace(currentShape, pieceRow + 1, pieceCol, board))
+                        {
+                            pieceRow++;
+                        }
+                    }
+
+                    // ROTATE
+                    if (key->code == sf::Keyboard::Key::Up ||
+                        key->code == sf::Keyboard::Key::W)
+                    {
+                        char rotated[4][4];
+
                         for (int r = 0; r < 4; r++)
                         {
                             for (int c = 0; c < 4; c++)
                             {
-                                currentShape[r][c] = rotated[r][c];
+                                rotated[c][3 - r] = currentShape[r][c];
+                            }
+                        }
+
+                        if (canPlace(rotated, pieceRow, pieceCol, board))
+                        {
+                            for (int r = 0; r < 4; r++)
+                            {
+                                for (int c = 0; c < 4; c++)
+                                {
+                                    currentShape[r][c] = rotated[r][c];
+                                }
                             }
                         }
                     }
@@ -309,71 +519,81 @@ int main()
         }
 
         // Automatic falling
-        fallCounter++;
-
-        if (fallCounter >= 30)
+        if (gameState == PLAYING)
         {
-            fallCounter = 0;
+            fallCounter++;
 
-            if (canPlace(currentShape, pieceRow + 1, pieceCol, board))
+            if (fallCounter >= 30)
             {
-                pieceRow++;
-            }
-            else
-            {
-                // Lock piece into board
-                for (int r = 0; r < 4; r++)
+                fallCounter = 0;
+
+                if (canPlace(currentShape, pieceRow + 1, pieceCol, board))
                 {
-                    for (int c = 0; c < 4; c++)
+                    pieceRow++;
+                }
+                else
+                {
+                    // Lock piece into board
+                    for (int r = 0; r < 4; r++)
                     {
-                        if (currentShape[r][c] == '#')
+                        for (int c = 0; c < 4; c++)
                         {
-                            board[pieceRow + r][pieceCol + c] =
-                                current_piece + 1;
+                            if (currentShape[r][c] == '#')
+                            {
+                                board[pieceRow + r][pieceCol + c] =
+                                    current_piece + 1;
+                            }
                         }
                     }
-                }
-                int cleared = clearLines(board);
 
-                if (cleared == 1)
-                {
-                    score += 100;
-                }
-                else if (cleared == 2)
-                {
-                    score += 300;
-                }
-                else if (cleared == 3)
-                {
-                    score += 500;
-                }
-                else if (cleared == 4)
-                {
-                    score += 800;
-                }
+                    // Clear lines
+                    int cleared = clearLines(board);
 
-                // High Score ko foran check karo
-                checkHighScore(score, highScore);
-
-
-
-                // Select next piece in order
-                current_piece++;
-
-                if (current_piece >= 7)
-                {
-                    current_piece = 0;
-                }
-
-                pieceRow = 0;
-                pieceCol = 3;
-
-                // Copy next piece
-                for (int r = 0; r < 4; r++)
-                {
-                    for (int c = 0; c < 4; c++)
+                    if (cleared == 1)
                     {
-                        currentShape[r][c] = pieces[current_piece][r][c];
+                        score += 100;
+                    }
+                    else if (cleared == 2)
+                    {
+                        score += 300;
+                    }
+                    else if (cleared == 3)
+                    {
+                        score += 500;
+                    }
+                    else if (cleared == 4)
+                    {
+                        score += 800;
+                    }
+
+                    // Update High Score
+                    checkHighScore(score, highScore);
+
+                    // Select next piece
+                    current_piece++;
+
+                    if (current_piece >= 7)
+                    {
+                        current_piece = 0;
+                    }
+
+                    pieceRow = 0;
+                    pieceCol = 3;
+
+                    // Copy next piece
+                    for (int r = 0; r < 4; r++)
+                    {
+                        for (int c = 0; c < 4; c++)
+                        {
+                            currentShape[r][c] =
+                                pieces[current_piece][r][c];
+                        }
+                    }
+
+                    // Check Game Over
+                    if (!canPlace(currentShape, pieceRow, pieceCol, board))
+                    {
+                        gameState = GAME_OVER;
                     }
                 }
             }
@@ -381,49 +601,69 @@ int main()
 
         window.clear(sf::Color::Black);
 
-        // Draw board
-        for (int r = 0; r < 20; r++)
+        // MAIN MENU
+        if (gameState == MENU)
         {
-            for (int c = 0; c < 10; c++)
+            if (fontLoaded)
             {
-                block.setFillColor(colors[board[r][c]]);
-
-                block.setPosition({
-                    board_x + c * CELL + 1,
-                    board_y + r * CELL + 1
-                    });
-
-                window.draw(block);
+                drawMenu(window, font, selected, soundOn);
             }
         }
 
-        // Draw current piece
-        for (int r = 0; r < 4; r++)
+        // PLAYING
+        else if (gameState == PLAYING)
         {
-            for (int c = 0; c < 4; c++)
+            // Draw board
+            for (int r = 0; r < 20; r++)
             {
-                if (currentShape[r][c] == '#')
+                for (int c = 0; c < 10; c++)
                 {
-                    block.setFillColor(colors[current_piece + 1]);
+                    block.setFillColor(colors[board[r][c]]);
 
                     block.setPosition({
-                        board_x + (pieceCol + c) * CELL + 1,
-                        board_y + (pieceRow + r) * CELL + 1
+                        board_x + c * CELL + 1,
+                        board_y + r * CELL + 1
                         });
 
                     window.draw(block);
                 }
             }
+
+            // Draw current piece
+            for (int r = 0; r < 4; r++)
+            {
+                for (int c = 0; c < 4; c++)
+                {
+                    if (currentShape[r][c] == '#')
+                    {
+                        block.setFillColor(colors[current_piece + 1]);
+
+                        block.setPosition({
+                            board_x + (pieceCol + c) * CELL + 1,
+                            board_y + (pieceRow + r) * CELL + 1
+                            });
+
+                        window.draw(block);
+                    }
+                }
+            }
+
+            // Draw scores
+            if (fontLoaded)
+            {
+                drawHighScore(window, font, highScore);
+                drawScore(window, font, score);
+            }
         }
-        if (fontLoaded)
+
+        // GAME OVER
+        else if (gameState == GAME_OVER)
         {
-            drawHighScore(window, font, highScore);
-
-            drawScore(window, font, score);
+            if (fontLoaded)
+            {
+                drawGameOver(window, font, score);
+            }
         }
-
-
-
 
         window.display();
     }
