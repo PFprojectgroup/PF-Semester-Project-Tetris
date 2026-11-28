@@ -1,5 +1,7 @@
+
 #include <iostream>
 #include <fstream>
+#include <string>
 #include <SFML/Graphics.hpp>
 using namespace std;
 
@@ -113,7 +115,63 @@ int clearLines(int board[20][10])
 
     return lines;
 }
+int loadHighScore()
+{
+    ifstream fin("highscore.txt");
 
+    int best = 0;
+
+    if (fin)
+    {
+        fin >> best;
+
+        if (best < 0)
+        {
+            best = 0;
+        }
+    }
+
+    return best;
+}
+void saveHighScore(int best)
+{
+    ofstream fout("highscore.txt");
+
+    if (fout)
+    {
+        fout << best << endl;
+    }
+}
+void checkHighScore(int score, int& highScore)
+{
+    if (score > highScore)
+    {
+        highScore = score;
+
+        saveHighScore(highScore);
+    }
+}
+void drawHighScore(sf::RenderWindow& window, sf::Font& font, int highScore)
+{
+    sf::Text text(font, "HIGH SCORE: " + to_string(highScore), 18);
+
+    text.setFillColor(sf::Color::Yellow);
+
+    text.setPosition({ 330.f, 80.f });
+
+    window.draw(text);
+}
+
+void drawScore(sf::RenderWindow& window, sf::Font& font, int score)
+{
+    sf::Text text(font, "SCORE: " + to_string(score), 18);
+
+    text.setFillColor(sf::Color::White);
+
+    text.setPosition({ 330.f, 130.f });
+
+    window.draw(text);
+}
 int main()
 {
     // Load pieces
@@ -127,6 +185,13 @@ int main()
 
     // Game board
     int board[20][10] = { 0 };
+    int score = 0;
+
+    int highScore = loadHighScore();
+
+    sf::Font font;
+
+    bool fontLoaded = font.openFromFile("C:/Windows/Fonts/arial.ttf");
 
     const float CELL = 30.f;
     const float board_x = 20.f;
@@ -268,7 +333,29 @@ int main()
                         }
                     }
                 }
-                clearLines(board);
+                int cleared = clearLines(board);
+
+                if (cleared == 1)
+                {
+                    score += 100;
+                }
+                else if (cleared == 2)
+                {
+                    score += 300;
+                }
+                else if (cleared == 3)
+                {
+                    score += 500;
+                }
+                else if (cleared == 4)
+                {
+                    score += 800;
+                }
+
+                // High Score ko foran check karo
+                checkHighScore(score, highScore);
+
+
 
                 // Select next piece in order
                 current_piece++;
@@ -328,6 +415,15 @@ int main()
                 }
             }
         }
+        if (fontLoaded)
+        {
+            drawHighScore(window, font, highScore);
+
+            drawScore(window, font, score);
+        }
+
+
+
 
         window.display();
     }
