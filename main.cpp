@@ -161,7 +161,16 @@ void checkHighScore(int score, int& highScore)
         saveHighScore(highScore);
     }
 }
+// Draw Level
+void drawLevel(sf::RenderWindow& window, sf::Font& font, int level)
+{
+    sf::Text text(font, "LEVEL: " + to_string(level), 18);
 
+    text.setFillColor(sf::Color::Green);
+    text.setPosition({ 330.f, 180.f });
+
+    window.draw(text);
+}
 // Draw High Score
 void drawHighScore(sf::RenderWindow& window, sf::Font& font, int highScore)
 {
@@ -639,6 +648,12 @@ int main()
 
                     window.draw(block);
                 }
+            }
+            if (fontLoaded)
+            {
+                drawHighScore(window, font, highScore);
+                drawScore(window, font, score);
+                drawLevel(window, font, level);   // NEW
             }
 
             // Draw current piece
